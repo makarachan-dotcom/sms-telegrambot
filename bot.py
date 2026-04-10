@@ -67,7 +67,14 @@ load_dotenv()
 
 # Required environment variables
 TELEGRAM_BOT_TOKEN: str = os.environ["TELEGRAM_BOT_TOKEN"]
-INFOBIP_BASE_URL: str = os.environ["INFOBIP_BASE_URL"].rstrip("/")
+# Strip scheme and trailing slash so the value is always a bare hostname
+# (e.g. "abc123.api.infobip.com"), even if the user accidentally includes
+# "https://" in the .env file.
+_raw_base_url = os.environ["INFOBIP_BASE_URL"].strip()
+for _scheme in ("https://", "http://"):
+    if _raw_base_url.lower().startswith(_scheme):
+        _raw_base_url = _raw_base_url[len(_scheme):]
+INFOBIP_BASE_URL: str = _raw_base_url.rstrip("/")
 INFOBIP_API_KEY: str = os.environ["INFOBIP_API_KEY"]
 
 # Optional environment variables with sensible defaults
@@ -561,7 +568,7 @@ async def callback_confirm_send(update: Update, context: ContextTypes.DEFAULT_TY
         logger.error("Infobip HTTP error %d | user_id=%s | to=%s | body=%s", status_code, user.id, phone, exc.response.text[:200])
 
         if status_code == 401:
-            msg = "🔐 *Authorisation failed.* Your Infobip API key is invalid or expired."
+            msg = "🔐 *Authorization failed.* Your Infobip API key is invalid or expired."
         elif status_code == 400:
             msg = "⚠️ *Bad request.* The phone number or message text was rejected by Infobip."
         elif status_code == 429:
